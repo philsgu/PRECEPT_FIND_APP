@@ -1,10 +1,14 @@
 import { Resend } from 'resend'
 import type { CoverageEntry } from './amion'
 
+// NOTE: Without a custom domain, Resend can only deliver to the account's
+// verified email (philsgu@gmail.com). Add a domain at resend.com to send
+// to the full recipient list below.
 export const RECIPIENT_EMAILS = [
-  'phillip.kim@samc.com',
-  'katarina.soewono@samc.com',
-  'esmeralda.pimentel@samc.com',
+  'philsgu@gmail.com',
+  // 'phillip.kim@samc.com',       // enable once custom domain is configured
+  // 'katarina.soewono@samc.com',
+  // 'esmeralda.pimentel@samc.com',
 ]
 
 function statusBadge(ratio: number): string {

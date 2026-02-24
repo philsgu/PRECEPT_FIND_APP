@@ -82,7 +82,7 @@ export default function DashboardPage() {
   const [error,   setError]   = useState<string | null>(null)
 
   const [activeSession, setActiveSession] = useState<Session>('both')
-  const [viewMode,      setViewMode]      = useState<ViewMode>('shortage')
+  const [viewMode,      setViewMode]      = useState<ViewMode>('all')
 
   const [notifyStatus, setNotifyStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [notifyMsg,    setNotifyMsg]    = useState('')
@@ -114,7 +114,8 @@ export default function DashboardPage() {
     setNotifyStatus('sending')
     setNotifyMsg('')
     try {
-      const res = await fetch('/api/send-weekly-report')
+      const params = new URLSearchParams({ month, year })
+      const res = await fetch(`/api/send-weekly-report?${params}`)
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Email failed')
       setNotifyStatus('sent')

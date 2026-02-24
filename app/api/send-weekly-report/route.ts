@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchAmionData } from '@/lib/amion'
 import { sendWeeklyShortageReport } from '@/lib/email'
+import { sendNtfyShortageAlert } from '@/lib/ntfy'
 
 /**
  * This route is called by Vercel Cron every Monday at 09:00 UTC.
@@ -24,22 +25,29 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const year  = String(now.getFullYear())
+  const month = request.nextUrl.searchParams.get('month') ?? String(now.getMonth() + 1).padStart(2, '0')
+  const year  = request.nextUrl.searchParams.get('year')  ?? String(now.getFullYear())
 
   try {
     const data = await fetchAmionData(month, year, amionId)
 
-    const result = await sendWeeklyShortageReport(
-      data.amShortage,
-      data.pmShortage,
-      month,
-      year
-    )
+    // Fire email and ntfy notification in parallel
+    const [emailResult, ntfyResult] = await Promise.allSettled([
+      sendWeeklyShortageReport(data.amShortage, data.pmShortage, month, year),
+      sendNtfyShortageAlert(data.amShortage, data.pmShortage, month, year),
+    ])
+
+    const emailMsg = emailResult.status === 'fulfilled'
+      ? emailResult.value.message
+      : `Email error: ${(emailResult.reason as Error).message}`
+
+    const ntfyMsg = ntfyResult.status === 'fulfilled'
+      ? ntfyResult.value.message
+      : `ntfy error: ${(ntfyResult.reason as Error).message}`
 
     return NextResponse.json({
       success: true,
-      ...result,
+      message: `${emailMsg} | ${ntfyMsg}`,
       amShortageCount: data.amShortage.length,
       pmShortageCount: data.pmShortage.length,
       month,

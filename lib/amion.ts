@@ -37,13 +37,8 @@ export interface CoverageResult {
 
 function getDayOfWeek(dateStr: string): string {
   try {
-    const parts = dateStr.trim().split('/')
-    if (parts.length === 3) {
-      // MM/DD/YYYY or similar
-      const d = new Date(`${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`)
-      return d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
-    }
-    const d = new Date(dateStr)
+    const d = parseDateSafe(dateStr)
+    if (!d) return ''
     return d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
   } catch {
     return ''
@@ -52,11 +47,21 @@ function getDayOfWeek(dateStr: string): string {
 
 function parseDateSafe(dateStr: string): Date | null {
   try {
-    const parts = dateStr.trim().split('/')
-    if (parts.length === 3) {
-      return new Date(`${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`)
+    const s = dateStr.trim()
+    // Amion format: M-D-YY (e.g. 5-1-26)
+    const dashParts = s.split('-')
+    if (dashParts.length === 3 && dashParts[2].length <= 2) {
+      const year = parseInt(dashParts[2], 10) + 2000
+      const month = dashParts[0].padStart(2, '0')
+      const day   = dashParts[1].padStart(2, '0')
+      return new Date(`${year}-${month}-${day}`)
     }
-    return new Date(dateStr)
+    // Slash format: MM/DD/YYYY
+    const slashParts = s.split('/')
+    if (slashParts.length === 3) {
+      return new Date(`${slashParts[2]}-${slashParts[0].padStart(2,'0')}-${slashParts[1].padStart(2,'0')}`)
+    }
+    return new Date(s)
   } catch {
     return null
   }
@@ -117,6 +122,17 @@ function processSession(
   }
 }
 
+/**
+ * Amion uses academic years: Year=2025 covers Jul 2025 – Jun 2026.
+ * Months Jan–Jun belong to the academic year that started the prior July.
+ * So we subtract 1 from the year for months 1–6.
+ */
+function toAmionYear(month: string, year: string): string {
+  const m = parseInt(month, 10)
+  const y = parseInt(year, 10)
+  return String(m >= 1 && m <= 6 ? y - 1 : y)
+}
+
 export async function fetchAmionData(
   month: string,
   year: string,
@@ -124,7 +140,8 @@ export async function fetchAmionData(
   startDate?: string,
   endDate?: string
 ): Promise<CoverageResult> {
-  const url = `${AMION_BASE}?Lo=${encodeURIComponent(amionId)}&Rpt=625c&Month=${month}&Year=${year}`
+  const amionYear = toAmionYear(month, year)
+  const url = `${AMION_BASE}?Lo=${encodeURIComponent(amionId)}&Rpt=625c&Month=${month}&Year=${amionYear}`
 
   const response = await fetch(url, { cache: 'no-store' })
   if (!response.ok) {
@@ -134,6 +151,11 @@ export async function fetchAmionData(
   // Use latin-1 decoding to match the Python implementation
   const buffer = await response.arrayBuffer()
   const text = new TextDecoder('latin1').decode(buffer)
+
+  // Amion returns a plain-text error when no schedule file exists
+  if (/no.*schedule file|NOFI=No file/i.test(text.slice(0, 200))) {
+    throw new Error(`No Amion schedule found for ${month}/${year} (academic year ${amionYear}). Check your year selection.`)
+  }
 
   const lines = text.split('\n')
   // Skip first 8 lines: 7 metadata rows + 1 column-header row
