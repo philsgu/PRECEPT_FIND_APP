@@ -1,5 +1,5 @@
 {
-  "outputDirectory": ".next",
+  "framework": "nextjs",
   "crons": [
     {
       "path": "/api/send-weekly-report",
