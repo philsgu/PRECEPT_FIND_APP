@@ -5,10 +5,10 @@ import type { CoverageEntry } from './amion'
 // verified email (philsgu@gmail.com). Add a domain at resend.com to send
 // to the full recipient list below.
 export const RECIPIENT_EMAILS = [
-  'philsgu@gmail.com',
-  // 'phillip.kim@samc.com',       // enable once custom domain is configured
-  // 'katarina.soewono@samc.com',
-  // 'esmeralda.pimentel@samc.com',
+  //'philsgu@gmail.com',
+  'phillip.kim@samc.com',       // enable once custom domain is configured
+  'katarina.soewono@samc.com',
+  'esmeralda.pimentel@samc.com',
 ]
 
 function statusBadge(ratio: number): string {
@@ -154,7 +154,7 @@ export async function sendWeeklyShortageReport(
 </html>`
 
   const result = await resend.emails.send({
-    from: 'SAMC FM Dashboard <onboarding@resend.dev>',
+    from: 'SAMC FM Dashboard <noreply@healtolearn.com>',
     to: RECIPIENT_EMAILS,
     subject: `⚠️ Preceptor Shortage Alert — ${monthName} ${year} (${totalIssues} dates)`,
     html,
